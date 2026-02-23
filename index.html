@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>COSMIC CLICKER</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:      #040408;
+  --panel:   #0b0b18;
+  --border:  #161630;
+  --accent:  #00e5ff;
+  --accent2: #ff2d6b;
+  --accent3: #7c3aff;
+  --gold:    #fbbf24;
+  --text:    #c8d6f0;
+  --dim:     #3d4a63;
+}
+
+/* ── Telegram theme integration ─────────────────── */
+body[data-theme="light"] {
+  --bg:     #f0f4ff;
+  --panel:  #ffffff;
+  --border: #d0d8f0;
+  --text:   #1a1a2e;
+  --dim:    #6b7280;
+}
+
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+html {
+  height: 100%;
+  background: var(--bg);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Rajdhani', sans-serif;
+  min-height: 100vh;
+  min-height: var(--tg-viewport-height, 100vh);
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+/* ── Canvas stars ───────────────────────────────── */
+#canvas {
+  position: fixed; inset: 0; z-index: 0;
+  pointer-events: none;
+}
+
+/* ── Layout ─────────────────────────────────────── */
+.app {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column;
+  min-height: 100vh;
+  min-height: var(--tg-viewport-height, 100vh);
+}
+
+/* ── Header ─────────────────────────────────────── */
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(4,4,8,0.9);
+  backdrop-filter: blur(16px);
+  flex-shrink: 0;
+  safe-area-inset-top: env(safe-area-inset-top);
+}
+
+.logo {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 16px; font-weight: 900; letter-spacing: 3px;
+  background: linear-gradient(90deg, var(--accent) 0%, var(--accent3) 50%, var(--accent2) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+
+.hstats { display: flex; gap: 16px; }
+.hstat { text-align: center; }
+.hstat-label { font-size: 8px; letter-spacing: 1.5px; color: var(--dim); text-transform: uppercase; }
+.hstat-val { font-family: 'Orbitron', sans-serif; font-size: 12px; color: var(--accent); }
+.hstat-val.gold { color: var(--gold); }
+
+/* ── Tab Nav ─────────────────────────────────────── */
+.tabs {
+  display: flex; background: rgba(4,4,8,0.8);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.tab {
+  flex: 1; padding: 8px 4px; text-align: center;
+  font-size: 11px; font-weight: 600; letter-spacing: 1px;
+  color: var(--dim); cursor: pointer; border: none;
+  background: transparent; transition: color .2s;
+  border-bottom: 2px solid transparent;
+}
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ── Views ───────────────────────────────────────── */
+.view { display: none; flex: 1; overflow-y: auto; padding: 14px; flex-direction: column; gap: 10px; }
+.view.active { display: flex; }
+
+/* ── CENTER CLICKER ──────────────────────────────── */
+.clicker-view {
+  align-items: center; justify-content: center;
+}
+
+.score-wrap { text-align: center; margin-bottom: 8px; }
+.score-num {
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(34px, 8vw, 52px);
+  font-weight: 900;
+  background: linear-gradient(180deg, #fff 0%, var(--accent) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 16px rgba(0,229,255,.4));
+  line-height: 1;
+}
+.score-label { font-size: 9px; letter-spacing: 4px; color: var(--dim); text-transform: uppercase; margin-top: 5px; }
+.cps-label { font-size: 12px; color: var(--accent3); margin-top: 3px; letter-spacing: 1px; }
+
+/* ── THE BUTTON ──────────────────────────────────── */
+.btn-wrap {
+  position: relative; width: 170px; height: 170px;
+  display: flex; align-items: center; justify-content: center;
+  margin: 16px 0;
+}
+.ring {
+  position: absolute; inset: 0; border-radius: 50%;
+  animation: spin linear infinite;
+}
+.ring1 { border: 1px solid rgba(0,229,255,.18); animation-duration: 9s; }
+.ring2 { inset: 12px; border: 1px dashed rgba(124,58,255,.22); animation-duration: 14s; animation-direction: reverse; }
+.ring3 { inset: 24px; border: 1px solid rgba(255,45,107,.15); animation-duration: 7s; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.click-btn {
+  position: relative; z-index: 5;
+  width: 120px; height: 120px; border-radius: 50%;
+  border: none; cursor: pointer;
+  background:
+    radial-gradient(circle at 38% 32%, rgba(255,255,255,.12), transparent 55%),
+    radial-gradient(circle, #10102a 0%, #04040d 100%);
+  box-shadow:
+    0 0 0 2px rgba(0,229,255,.25),
+    0 0 30px rgba(0,229,255,.12),
+    inset 0 0 25px rgba(0,229,255,.04);
+  font-size: 44px;
+  transition: transform .07s, box-shadow .07s;
+  display: flex; align-items: center; justify-content: center;
+}
+.click-btn:active {
+  transform: scale(.89);
+  box-shadow:
+    0 0 0 3px var(--accent),
+    0 0 70px rgba(0,229,255,.5),
+    inset 0 0 50px rgba(0,229,255,.15);
+}
+
+/* Prestige bar */
+.pbar-wrap { width: 180px; margin-top: 4px; }
+.pbar-head { display: flex; justify-content: space-between; font-size: 9px; letter-spacing: 1.5px; color: var(--dim); text-transform: uppercase; margin-bottom: 5px; }
+.pbar-bg   { height: 4px; background: rgba(255,255,255,.04); border-radius: 2px; border: 1px solid var(--border); overflow: hidden; }
+.pbar-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--accent3), var(--accent)); transition: width .35s ease; }
+
+.prestige-btn {
+  margin-top: 8px; padding: 8px 20px;
+  background: linear-gradient(135deg, rgba(251,191,36,.08), rgba(245,158,11,.12));
+  border: 1px solid rgba(251,191,36,.5); border-radius: 8px;
+  color: var(--gold); font-family: 'Orbitron', sans-serif;
+  font-size: 11px; letter-spacing: 2px; cursor: pointer;
+}
+
+/* ── UPGRADE / GEN CARDS ─────────────────────────── */
+.section-title {
+  font-family: 'Orbitron', sans-serif; font-size: 9px;
+  letter-spacing: 3px; color: var(--dim);
+  text-transform: uppercase; padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.card {
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px; cursor: pointer;
+  transition: border-color .15s, background .15s, opacity .2s;
+  background: rgba(255,255,255,.02);
+}
+.card:active:not(.locked):not(.maxed) {
+  background: rgba(0,229,255,.06);
+  border-color: rgba(0,229,255,.4);
+}
+.card.locked { opacity: .3; pointer-events: none; }
+.card.maxed  { border-color: rgba(251,191,36,.25); pointer-events: none; }
+
+.card-row { display: flex; align-items: center; gap: 8px; }
+.card-icon { font-size: 22px; flex-shrink: 0; }
+.card-body { flex: 1; min-width: 0; }
+.card-name { font-size: 12px; font-weight: 600; color: #dde8ff; }
+.card-sub  { font-size: 10px; color: var(--dim); }
+.card-cost { font-family: 'Orbitron', sans-serif; font-size: 10px; color: var(--gold); margin-top: 2px; }
+.card-count { font-family: 'Orbitron', sans-serif; font-size: 20px; font-weight: 900; color: var(--accent2); min-width: 28px; text-align: right; }
+
+/* ── SHOP / STARS ────────────────────────────────── */
+.shop-card {
+  border: 1px solid var(--border); border-radius: 12px;
+  padding: 14px; text-align: center;
+  background: rgba(255,255,255,.02);
+  cursor: pointer; transition: all .2s;
+}
+.shop-card:active { background: rgba(124,58,255,.08); border-color: var(--accent3); }
+.shop-icon { font-size: 36px; margin-bottom: 8px; }
+.shop-name { font-size: 14px; font-weight: 600; color: #dde8ff; margin-bottom: 4px; }
+.shop-desc { font-size: 11px; color: var(--dim); margin-bottom: 10px; }
+.shop-price {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: linear-gradient(135deg, rgba(251,191,36,.1), rgba(245,158,11,.15));
+  border: 1px solid rgba(251,191,36,.4);
+  border-radius: 20px; padding: 5px 14px;
+  font-family: 'Orbitron', sans-serif; font-size: 12px; color: var(--gold);
+}
+
+/* ── PARTICLES ───────────────────────────────────── */
+.particle {
+  position: fixed; pointer-events: none;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 15px; font-weight: 700;
+  animation: floatUp .85s ease-out forwards; z-index: 999;
+}
+@keyframes floatUp {
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-70px) scale(.5); }
+}
+
+/* ── TOAST ───────────────────────────────────────── */
+.toast {
+  position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+  background: rgba(0,229,255,.1); border: 1px solid rgba(0,229,255,.4);
+  border-radius: 10px; padding: 8px 18px;
+  font-family: 'Orbitron', sans-serif; font-size: 11px;
+  color: var(--accent); letter-spacing: 2px;
+  z-index: 1000; pointer-events: none; white-space: nowrap;
+  animation: toastIn .3s ease, toastOut .3s ease 2.7s forwards;
+}
+@keyframes toastIn  { from { opacity:0; top:55px; } to { opacity:1; top:70px; } }
+@keytml:toastOut { to { opacity:0; top:55px; } }
+@keyframes toastOut { to { opacity:0; top:55px; } }
+
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<div class="app">
+  <header>
+    <div class="logo">COSMIC</div>
+    <div class="hstats">
+      <div class="hstat">
+        <div class="hstat-label">Энергия</div>
+        <div class="hstat-val" id="hEnergy">0</div>
+      </div>
+      <div class="hstat">
+        <div class="hstat-label">Престиж</div>
+        <div class="hstat-val gold" id="hPrestige">0</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('clicker')">⚡ Клик</button>
+    <button class="tab" onclick="switchTab('upgrades')">🔧 Апгрейды</button>
+    <button class="tab" onclick="switchTab('generators')">🏭 Заводы</button>
+    <button class="tab" onclick="switchTab('shop')">⭐ Магазин</button>
+  </div>
+
+  <!-- CLICKER -->
+  <div class="view clicker-view active" id="view-clicker">
+    <div class="score-wrap">
+      <div class="score-num" id="scoreNum">0</div>
+      <div class="score-label">Энергия</div>
+      <div class="cps-label" id="cpsLabel">+0 / сек</div>
+    </div>
+
+    <div class="btn-wrap">
+      <div class="ring ring1"></div>
+      <div class="ring ring2"></div>
+      <div class="ring ring3"></div>
+      <button class="click-btn" id="mainBtn">⚡</button>
+    </div>
+
+    <div class="pbar-wrap">
+      <div class="pbar-head">
+        <span>Престиж</span><span id="pbarPct">0%</span>
+      </div>
+      <div class="pbar-bg"><div class="pbar-fill" id="pbarFill" style="width:0%"></div></div>
+    </div>
+    <button class="prestige-btn" id="prestigeBtn" style="display:none">✨ ПРЕСТИЖ ✨</button>
+  </div>
+
+  <!-- UPGRADES -->
+  <div class="view" id="view-upgrades">
+    <div class="section-title">⚡ Улучшения клика и генераторов</div>
+    <div id="upgList"></div>
+  </div>
+
+  <!-- GENERATORS -->
+  <div class="view" id="view-generators">
+    <div class="section-title">🏭 Пассивные генераторы энергии</div>
+    <div id="genList"></div>
+  </div>
+
+  <!-- SHOP -->
+  <div class="view" id="view-shop">
+    <div class="section-title">⭐ Магазин — Telegram Stars</div>
+    <div id="shopList"></div>
+    <div style="margin-top:12px; padding:10px; border:1px solid var(--border); border-radius:8px; font-size:11px; color:var(--dim); text-align:center;">
+      Звёзды — внутренняя валюта Telegram.<br>Используй их для ускорения прогресса!
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ── Telegram WebApp Init ───────────────────────── */
+const TG = window.Telegram?.WebApp;
+if (TG) {
+  TG.ready();
+  TG.expand();
+  // Apply Telegram color scheme
+  if (TG.colorScheme === 'light') {
+    document.body.setAttribute('data-theme', 'light');
+  }
+}
+
+const USER = TG?.initDataUnsafe?.user;
+
+/* ── Canvas Stars ───────────────────────────────── */
+(function() {
+  const cv = document.getElementById('canvas');
+  const cx = cv.getContext('2d');
+  let stars = [], W, H;
+  function resize() { W = cv.width = innerWidth; H = cv.height = innerHeight; }
+  resize(); addEventListener('resize', resize);
+  for (let i = 0; i < 160; i++) stars.push({
+    x: Math.random(), y: Math.random(),
+    r: Math.random() * 1.2 + 0.2,
+    a: Math.random(), s: (Math.random()-.5)*.003,
+    hue: Math.random() > .85 ? (Math.random() > .5 ? 180 : 270) : 0
+  });
+  function draw() {
+    cx.clearRect(0,0,W,H);
+    stars.forEach(s => {
+      s.a = Math.max(.1, Math.min(1, s.a + s.s));
+      if (s.a <= .1 || s.a >= 1) s.s *= -1;
+      cx.beginPath(); cx.arc(s.x*W, s.y*H, s.r, 0, Math.PI*2);
+      cx.fillStyle = s.hue === 0 ? `rgba(255,255,255,${s.a})` : `hsla(${s.hue},100%,75%,${s.a*.7})`;
+      cx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+/* ── DATA ────────────────────────────────────────── */
+const GENERATORS = [
+  { id:'solar',     icon:'☀️',  name:'Солнечная панель',    baseCost:15,       baseCps:0.1   },
+  { id:'wind',      icon:'🌀',  name:'Ветрогенератор',       baseCost:100,      baseCps:0.5   },
+  { id:'plasma',    icon:'🔵',  name:'Плазменный реактор',   baseCost:1100,     baseCps:4     },
+  { id:'quantum',   icon:'⚛️',  name:'Квантовый коллайдер', baseCost:12000,    baseCps:20    },
+  { id:'star',      icon:'🌟',  name:'Звёздный харвестер',   baseCost:130000,   baseCps:100   },
+  { id:'blackhole', icon:'🕳️', name:'Чёрная дыра',          baseCost:1400000,  baseCps:500   },
+  { id:'portal',    icon:'🌌',  name:'Измерительный портал', baseCost:20000000, baseCps:2500  },
+  { id:'bigbang',   icon:'💥',  name:'Большой взрыв',        baseCost:330000000,baseCps:12000 },
+];
+
+const UPGRADES = [
+  { id:'u1',  name:'Усиленные перчатки', desc:'Клик ×2',       cost:100,     req:0,       type:'click',  val:2   },
+  { id:'u2',  name:'Энергоперчатки',     desc:'Клик ×3',       cost:500,     req:100,     type:'click',  val:3   },
+  { id:'u3',  name:'Мегаперчатки',       desc:'Клик ×5',       cost:5000,    req:1000,    type:'click',  val:5   },
+  { id:'u4',  name:'Солнечный буст',     desc:'Солнечные ×2',  cost:200,     req:50,      type:'gen',    id2:'solar',  val:2 },
+  { id:'u5',  name:'Мощный ветер',       desc:'Ветер ×2',      cost:1000,    req:200,     type:'gen',    id2:'wind',   val:2 },
+  { id:'u6',  name:'Плазменный буст',    desc:'Плазма ×2',     cost:8000,    req:2000,    type:'gen',    id2:'plasma', val:2 },
+  { id:'u7',  name:'Автоклик I',         desc:'+3 кликов/с',   cost:2000,    req:500,     type:'auto',   val:3   },
+  { id:'u8',  name:'Автоклик II',        desc:'+10 кликов/с',  cost:50000,   req:10000,   type:'auto',   val:10  },
+  { id:'u9',  name:'Квантовый ускоритель',desc:'Всё ×1.5',     cost:500000,  req:50000,   type:'global', val:1.5 },
+  { id:'u10', name:'Тёмная материя',     desc:'Всё ×2',        cost:10000000,req:1000000, type:'global', val:2   },
+];
+
+const SHOP_ITEMS = [
+  { id:'boost1', icon:'⚡', name:'Суперзаряд',    desc:'×10 энергии на 1 минуту',  stars:25,  type:'boost', val:10, duration:60 },
+  { id:'boost2', icon:'🚀', name:'Варп-двигатель', desc:'×50 энергии на 5 минут',  stars:75,  type:'boost', val:50, duration:300 },
+  { id:'auto1',  icon:'🤖', name:'Нано-бот',       desc:'+50 автокликов навсегда',  stars:50,  type:'auto',  val:50 },
+  { id:'multi1', icon:'💎', name:'Квантовый чип',  desc:'Все генераторы ×3 навсегда',stars:150, type:'global',val:3 },
+  { id:'skip1',  icon:'🌌', name:'Прыжок престижа',desc:'Добавить 1 уровень престижа',stars:200, type:'prestige' },
+];
+
+const PRESTIGE_GOAL = 1000000;
+
+/* ── STATE ───────────────────────────────────────── */
+let G = {
+  energy: 0, totalEver: 0, clicks: 0,
+  prestige: 0, prestigeMult: 1,
+  generators: {}, upgrades: {},
+  activeBoost: null, // { mult, until }
+};
+
+let clickPower = 1, autoCps = 0, globalMult = 1, genMults = {};
+
+function recalc() {
+  clickPower = 1; autoCps = 0; globalMult = 1; genMults = {};
+  UPGRADES.forEach(u => {
+    if (!G.upgrades[u.id]) return;
+    if (u.type==='click')  clickPower *= u.val;
+    if (u.type==='auto')   autoCps    += u.val;
+    if (u.type==='global') globalMult *= u.val;
+    if (u.type==='gen')    genMults[u.id2] = (genMults[u.id2]||1)*u.val;
+  });
+}
+
+function calcCps() {
+  let t = 0;
+  GENERATORS.forEach(g => {
+    t += (G.generators[g.id]||0) * g.baseCps * (genMults[g.id]||1);
+  });
+  t += autoCps * clickPower;
+  const boost = (G.activeBoost && Date.now() < G.activeBoost.until) ? G.activeBoost.mult : 1;
+  return t * globalMult * G.prestigeMult * boost;
+}
+
+/* ── FORMAT ──────────────────────────────────────── */
+function fmt(n) {
+  if (n < 1000) return Math.floor(n).toString();
+  const s=['','K','M','B','T','Qa','Qi'];
+  let i=0; while(n>=1000&&i<s.length-1){n/=1000;i++;}
+  return n.toFixed(2)+' '+s[i];
+}
+
+/* ── TABS ────────────────────────────────────────── */
+function switchTab(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  event.target.classList.add('active');
+  if (name==='upgrades') renderUpgrades();
+  if (name==='generators') renderGenerators();
+  if (name==='shop') renderShop();
+}
+
+/* ── CLICK ───────────────────────────────────────── */
+document.getElementById('mainBtn').addEventListener('click', function(e) {
+  const boost = (G.activeBoost && Date.now() < G.activeBoost.until) ? G.activeBoost.mult : 1;
+  const gain = clickPower * globalMult * G.prestigeMult * boost;
+  G.energy += gain; G.totalEver += gain; G.clicks++;
+
+  // Haptic feedback via Telegram
+  TG?.HapticFeedback?.impactOccurred('light');
+
+  const p = document.createElement('div');
+  p.className = 'particle'; p.textContent = '+'+fmt(gain);
+  const jitter = (Math.random()-.5)*60;
+  p.style.left = (e.clientX+jitter)+'px';
+  p.style.top  = (e.clientY-15)+'px';
+  const hue = [180,270,330][Math.floor(Math.random()*3)];
+  p.style.color = p.style.textShadow = `hsl(${hue},100%,68%)`;
+  document.body.appendChild(p);
+  setTimeout(()=>p.remove(), 870);
+});
+
+document.getElementById('mainBtn').addEventListener('touchend', e => {
+  e.preventDefault(); e.target.click();
+}, {passive:false});
+
+/* ── BUY GEN ─────────────────────────────────────── */
+function buyGen(id) {
+  const g = GENERATORS.find(x=>x.id===id);
+  const cost = Math.floor(g.baseCost * Math.pow(1.15, G.generators[id]||0));
+  if (G.energy < cost) return;
+  G.energy -= cost;
+  G.generators[id] = (G.generators[id]||0)+1;
+  TG?.HapticFeedback?.notificationOccurred('success');
+}
+
+/* ── BUY UPGRADE ─────────────────────────────────── */
+function buyUpgrade(id) {
+  const u = UPGRADES.find(x=>x.id===id);
+  if (!u || G.upgrades[id] || G.energy < u.cost || G.totalEver < u.req) return;
+  G.energy -= u.cost;
+  G.upgrades[id] = true;
+  recalc();
+  showToast('✅ '+u.name+' активировано!');
+  TG?.HapticFeedback?.notificationOccurred('success');
+}
+
+/* ── PRESTIGE ────────────────────────────────────── */
+document.getElementById('prestigeBtn').addEventListener('click', () => {
+  if (G.totalEver < PRESTIGE_GOAL) return;
+  TG?.HapticFeedback?.notificationOccurred('warning');
+  G.prestige++; G.prestigeMult = 1 + G.prestige*.5;
+  G.energy=0; G.totalEver=0; G.clicks=0;
+  G.generators={}; G.upgrades={}; G.activeBoost=null;
+  recalc();
+  showToast('✨ ПРЕСТИЖ x'+G.prestige+' | +'+G.prestige*50+'% к доходу!');
+});
+
+/* ── SHOP / STARS ────────────────────────────────── */
+function buyStarsItem(id) {
+  const item = SHOP_ITEMS.find(x=>x.id===id);
+  if (!item) return;
+
+  if (!TG) {
+    // Dev mode: apply for free
+    applyShopItem(item);
+    showToast('🛒 Тест: '+item.name+' применено!');
+    return;
+  }
+
+  // Real Telegram Stars invoice
+  TG.openInvoice(`https://t.me/YOUR_BOT_NAME?start=buy_${id}`, (status) => {
+    if (status === 'paid') {
+      applyShopItem(item);
+      showToast('⭐ '+item.name+' куплено!');
+      TG.HapticFeedback.notificationOccurred('success');
+    }
+  });
+}
+
+function applyShopItem(item) {
+  if (item.type === 'boost') {
+    G.activeBoost = { mult: item.val, until: Date.now() + item.duration * 1000 };
+  } else if (item.type === 'auto') {
+    // Add via a pseudo-upgrade
+    autoCps += item.val;
+  } else if (item.type === 'global') {
+    globalMult *= item.val;
+  } else if (item.type === 'prestige') {
+    G.prestige++; G.prestigeMult = 1 + G.prestige*.5;
+  }
+}
+
+/* ── TOAST ───────────────────────────────────────── */
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.className='toast'; t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(), 3100);
+}
+
+/* ── MILESTONES ──────────────────────────────────── */
+const MILESTONES = [
+  {v:100,msg:'🌱 Начало!'},{v:1000,msg:'⚡ 1,000!'},{v:10000,msg:'🔥 10,000!'},{v:100000,msg:'🚀 100,000!'},{v:1000000,msg:'🌌 МИЛЛИОН!'}
+];
+const _shown = new Set();
+function checkMilestones() {
+  MILESTONES.forEach(m => {
+    if (G.totalEver >= m.v && !_shown.has(m.v)) {
+      _shown.add(m.v); showToast(m.msg);
+    }
+  });
+}
+
+/* ── RENDER ──────────────────────────────────────── */
+function render() {
+  const cps = calcCps();
+  document.getElementById('scoreNum').textContent = fmt(G.energy);
+  document.getElementById('cpsLabel').textContent = '+'+fmt(cps)+' / сек';
+  document.getElementById('hEnergy').textContent  = fmt(G.energy);
+  document.getElementById('hPrestige').textContent = G.prestige;
+
+  const pct = Math.min(100, (G.totalEver/PRESTIGE_GOAL)*100);
+  document.getElementById('pbarFill').style.width = pct+'%';
+  document.getElementById('pbarPct').textContent  = Math.floor(pct)+'%';
+  document.getElementById('prestigeBtn').style.display = G.totalEver>=PRESTIGE_GOAL?'block':'none';
+  checkMilestones();
+}
+
+function renderUpgrades() {
+  const w = document.getElementById('upgList'); w.innerHTML='';
+  UPGRADES.forEach(u=>{
+    const bought=!!G.upgrades[u.id], canAfford=G.energy>=u.cost, unlocked=G.totalEver>=u.req;
+    const el=document.createElement('div');
+    el.className='card'+(bought?' maxed':(!canAfford||!unlocked?' locked':''));
+    el.innerHTML=`<div class="card-row">
+      <div class="card-body">
+        <div class="card-name">${u.name}</div>
+        <div class="card-sub">${u.desc}</div>
+        <div class="card-cost">${bought?'✓ Куплено':fmt(u.cost)+' ⚡'}</div>
+      </div></div>`;
+    if(!bought&&canAfford&&unlocked) el.addEventListener('click',()=>{ buyUpgrade(u.id); renderUpgrades(); });
+    w.appendChild(el);
+  });
+}
+
+function renderGenerators() {
+  const w = document.getElementById('genList'); w.innerHTML='';
+  GENERATORS.forEach(g=>{
+    const cost=Math.floor(g.baseCost*Math.pow(1.15,G.generators[g.id]||0));
+    const owned=G.generators[g.id]||0, canAfford=G.energy>=cost;
+    const el=document.createElement('div');
+    el.className='card'+(canAfford?'':' locked');
+    el.innerHTML=`<div class="card-row">
+      <div class="card-icon">${g.icon}</div>
+      <div class="card-body">
+        <div class="card-name">${g.name}</div>
+        <div class="card-sub">${g.baseCps}/с каждый</div>
+        <div class="card-cost">${fmt(cost)} ⚡</div>
+      </div>
+      <div class="card-count">${owned}</div>
+    </div>`;
+    if(canAfford) el.addEventListener('click',()=>{ buyGen(g.id); renderGenerators(); });
+    w.appendChild(el);
+  });
+}
+
+function renderShop() {
+  const w = document.getElementById('shopList'); w.innerHTML='';
+  SHOP_ITEMS.forEach(item=>{
+    const el=document.createElement('div');
+    el.className='shop-card';
+    el.innerHTML=`
+      <div class="shop-icon">${item.icon}</div>
+      <div class="shop-name">${item.name}</div>
+      <div class="shop-desc">${item.desc}</div>
+      <div class="shop-price">⭐ ${item.stars} Stars</div>`;
+    el.addEventListener('click',()=>buyStarsItem(item.id));
+    w.appendChild(el);
+  });
+}
+
+/* ── GAME LOOP ───────────────────────────────────── */
+let lastTick = performance.now();
+function loop(now) {
+  const dt = Math.min((now-lastTick)/1000, 0.5);
+  lastTick = now;
+  const gain = calcCps()*dt;
+  G.energy += gain; G.totalEver += gain;
+  render();
+  requestAnimationFrame(loop);
+}
+
+/* ── SAVE / LOAD ─────────────────────────────────── */
+const SAVE_KEY = 'cosmicTG_v1';
+function save() {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({...G, _auto:autoCps, _gm:globalMult})); } catch(e){}
+}
+function load() {
+  try {
+    const d = JSON.parse(localStorage.getItem(SAVE_KEY)||'null');
+    if (!d) return;
+    Object.assign(G, d);
+    autoCps = d._auto||0; globalMult = d._gm||1;
+    recalc();
+    MILESTONES.forEach(m => { if(G.totalEver>=m.v) _shown.add(m.v); });
+  } catch(e){}
+}
+
+load(); recalc();
+requestAnimationFrame(loop);
+setInterval(save, 5000);
+
+// Share button via Telegram
+if (TG) {
+  TG.MainButton.setText('📤 Поделиться результатом');
+  TG.MainButton.onClick(()=>{
+    const text = `🚀 Я собрал ${fmt(G.totalEver)} энергии в Cosmic Clicker!\nПрестиж: ${G.prestige} ✨\nПопробуй побить мой рекорд!`;
+    TG.switchInlineQuery(text);
+  });
+  TG.MainButton.show();
+}
+</script>
+</body>
+</html>
